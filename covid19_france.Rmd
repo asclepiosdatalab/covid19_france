@@ -1,0 +1,243 @@
+---
+title: " \n Information Covid-19 en France"
+
+output: 
+  flexdashboard::flex_dashboard:
+    css: "C:/Users/rdlma/Documents/git/covid19_dashboard/css/covid19.css"
+    logo: "C:/Users/rdlma/Documents/git/covid19_dashboard/img/adl_2.png"
+    highlight: pygments
+    social: NULL
+    center: true
+    smooth_scroll: true
+    vertical_layout: fill
+    editor_options: 
+      chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+
+## ---- path
+path.script = "~/git/covid19_dashboard/script/"
+path.data= "~/git/covid19_dashboard/data/"
+## ---- options
+options(scipen=99999)
+options('digits' = 13,readr.show_progress = FALSE)
+Sys.getlocale()
+Sys.setlocale("LC_ALL","French")
+## ---- library
+listPK <- c(
+  "flexdashboard",
+  "shiny",
+  "knitr",
+  "data.table",
+  "plotly",
+  "dplyr",
+  "tidyverse",
+  "DT",
+  "stringr",
+  "purrr",
+  "lubridate",
+  "htmltools",
+  "htmlwidgets",
+  "RColorBrewer",
+  "highcharter",
+  "leaflet",
+  "leaflet.extras",
+  "assertthat",
+  "rvest",
+  "qdapRegex",
+  "reshape2",
+  "lubridate")
+for(pkI in listPK) { 
+eval(parse(text = paste0(
+"if(!require(",pkI,")) { 
+install.packages('",pkI,"', dependencies = TRUE)
+suppressMessages(library(",pkI,")) }"))) }
+rm(pkI,listPK)
+## ---- function
+# source(paste0(path.script,"covid19_data.R"))
+```
+
+```{r, echo=FALSE, message=FALSE}
+## ---- data
+source(paste0(path.script,"covid19_data.R"))
+covid19_data(covid.path.data = path.data)
+covid19 = get(load(paste0(path.data, "covid19.rdata")))
+```
+
+
+Column 1 {.responsive data-width=300}
+------------------------------------
+
+### Valuebox cas
+```{r }
+data = copy(covid19$histo)
+valueBox(
+  value = tags$p(paste0(data[date == max(data$date), cas],' cas confirmés'), style = "font-size:40%; font-family:'Verdana';"),
+  caption = tags$p(paste0("au ", Sys.Date()), style = "font-size:100%; font-family:'Verdana';"),
+  color = '#e67300')
+```
+
+### Valuebox nvx cas
+```{r }
+data = copy(covid19$histo)
+valueBox(
+  value = tags$p("+",paste0(data[date == max(data$date), new_cas],' nouveaux cas en 24h'), style = "font-size:40%; font-family:'Verdana';"),
+  caption = tags$p(paste("le ", Sys.Date()-1), style = "font-size:0%; font-family:'Verdana';"),
+  color = '#EA4335')
+```
+
+
+### {.responsive data-height=650}
+```{r }
+data = copy(covid19$histo)
+setorderv(data, "date", 1)
+highchart() %>%
+  ## ---- hc_xAxis
+  hc_xAxis(
+    categories = as.Date(data$date),
+    labels = list(rotation = 45),
+    title = list(enabled = FALSE)) %>%
+  ## ---- hc_yAxis
+  hc_yAxis_multiples(
+    list(
+      showLastLabel = TRUE,
+      showFirstLabel = FALSE,
+      opposite = FALSE,
+      lineWidth = 0,
+      min = 0,
+      max = max(data$cas),
+      labels = list(format = paste0("{value} ", ""), useHTML = TRUE),
+      title = list(text = "total")),
+    list(
+      showLastLabel = FALSE,
+      showFirstLabel = FALSE,
+      opposite = TRUE,
+      lineWidth = 0,
+      min = 0,
+      max = max(data$new_cas),
+      labels = list(format = paste0("{value} ", ""), useHTML = TRUE),
+      title = list(text = "nouveaux cas"))) %>%
+  ## ---- hc_add_series
+  hc_add_series(
+    data = data$cas,
+    name = "Total ",
+    type = "area",
+    zIndex = 1,
+    color = "#ff9933",
+    yAxis = 0) %>%
+  hc_add_series(
+    data = data$new_cas,
+    name = "Nouveaux ",
+    type = "column",
+    zIndex = 2,
+    color = "#EA4335",
+    yAxis = 1) %>%
+  ## ---- hc_tooltip
+  hc_tooltip(
+    crosshairs = TRUE,
+    shared = TRUE,
+    valueSuffix = " cas confirm?s",
+    borderWidth = 2,
+    borderColor = "#cccccc") %>%
+  ## ---- hc_plotOptions
+  hc_plotOptions(
+    area = list(
+      lineColor = "#e67300",
+      lineWidth = 2,
+      marker = list(enabled = FALSE)),
+    line = list(
+      lineWidth = 0.2,
+      marker = list(enabled = FALSE))) %>%
+  ## ---- hc_legend
+  hc_legend(NULL)
+```
+
+
+
+Column 2 {.responsive data-width=400}
+------------------------------------
+
+### {.responsive}
+```{r }
+data = copy(covid19$data[date == covid19$today])
+leaflet(
+  data,
+  options = leafletOptions(minZoom = 4, maxZoom = 10, zoomControl = TRUE)) %>%
+  addTiles(attribution = "<b> Asclepios Datalab </b>") %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(lng = 1.8, lat = 46.8, zoom = 5) %>%
+  addPulseMarkers(
+    lng = ~lon,
+    lat = ~lat,
+    icon = pulseIcons(color = 'red', heartbeat = 0.8, iconSize = 3)) %>%
+  addCircles(
+    lng = ~lon,
+    lat = ~lat,
+    color = "#EA4335",
+    opacity = 1,
+    fillColor = "#EA4335",
+    fillOpacity = 0.5,
+    weight = 1,
+    radius = ~cas*20,
+    popup = paste(
+      paste(data[date == covid19$today, lib_reg]),
+      paste('Total :', data[date == covid19$today, cas], ' cas confirmés'),
+      paste('Nouveaux cas en 24h :', paste(round(data[date == covid19$today, var]*100, 2)), '%'),
+      sep = '<br/>'))
+```
+
+Column 3 {.responsive data-width=300}
+------------------------------------
+
+### Répartition des cas par région {.responsive data-height=350}
+```{r }
+data = copy(covid19$data)
+data = merge(data[, sum(cas), by = "lib_reg"], data[, sum(new_cas), by = "lib_reg"], by = "lib_reg")
+setnames(data, colnames(data), c("lib_reg","cas","new_cas"))
+setorderv(data, "cas", -1)
+highchart() %>%
+  hc_xAxis(
+    categories = data$lib_reg,
+    tickmarkPlacement = "on") %>%
+  hc_yAxis(
+    max = max(0,data$cas),
+    labels = list(format = "{value}", useHTML = TRUE)) %>%
+  hc_plotOptions(
+    column = list(
+      grouping = FALSE,
+      shadow = FALSE,
+      borderWidth = 0,
+      dataLabels = list(enabled = FALSE))) %>%
+  hc_tooltip(
+    pointFormat = "<span style=\"color:{series.color}\">{series.name} : </span> {point.y} <br/>",
+    borderWidth = 2,
+    borderColor = "#cccccc",
+    crosshairs = TRUE,
+    shared = TRUE,
+    borderWidth = 2,
+    valueSuffix = ' cas confirmés') %>%
+  hc_add_series(
+    name = "Total",
+    type = "bar",
+    color = "#ff9933",
+    data = data$cas,
+    yAxis = 0,
+    pointPadding = -0.7,
+    pointPlacement = -0.2,
+    borderWidth = 0) %>%
+  hc_add_series(
+    name = "Nouveaux",
+    type = "bar",
+    color = "rgba(230, 46, 0, 1)",
+    data = data$new_cas,
+    yAxis = 0,
+    pointPadding = 0,
+    pointPlacement = 0.1,
+    borderWidth = 0.1)
+
+```
+
+
+
+
