@@ -1,10 +1,10 @@
 ---
-title: " \n Information Covid-19 en France"
+title: " \n Information sur l'évolution de l'épidémie du Covid-19 en France"
 
 output: 
   flexdashboard::flex_dashboard:
     css: "C:/Users/rdlma/Documents/git/covid19_dashboard/css/covid19.css"
-    logo: "C:/Users/rdlma/Documents/git/covid19_dashboard/img/adl_2.png"
+    logo: "C:/Users/rdlma/Documents/git/covid19_dashboard/www/adl_2.png"
     highlight: pygments
     social: NULL
     center: true
@@ -54,8 +54,6 @@ eval(parse(text = paste0(
 install.packages('",pkI,"', dependencies = TRUE)
 suppressMessages(library(",pkI,")) }"))) }
 rm(pkI,listPK)
-## ---- function
-# source(paste0(path.script,"covid19_data.R"))
 ```
 
 ```{r, echo=FALSE, message=FALSE}
@@ -128,7 +126,7 @@ highchart() %>%
     yAxis = 0) %>%
   hc_add_series(
     data = data$new_cas,
-    name = "Nouveaux ",
+    name = "Nouveaux (24h)",
     type = "column",
     zIndex = 2,
     color = "#EA4335",
@@ -137,7 +135,7 @@ highchart() %>%
   hc_tooltip(
     crosshairs = TRUE,
     shared = TRUE,
-    valueSuffix = " cas confirm?s",
+    valueSuffix = " cas confirmés",
     borderWidth = 2,
     borderColor = "#cccccc") %>%
   ## ---- hc_plotOptions
@@ -193,8 +191,7 @@ Column 3 {.responsive data-width=300}
 ### Répartition des cas par région {.responsive data-height=350}
 ```{r }
 data = copy(covid19$data)
-data = merge(data[, sum(cas), by = "lib_reg"], data[, sum(new_cas), by = "lib_reg"], by = "lib_reg")
-setnames(data, colnames(data), c("lib_reg","cas","new_cas"))
+data = copy(data[date == covid19$today, list(lib_reg,cas,new_cas)])
 setorderv(data, "cas", -1)
 highchart() %>%
   hc_xAxis(
@@ -227,7 +224,7 @@ highchart() %>%
     pointPlacement = -0.2,
     borderWidth = 0) %>%
   hc_add_series(
-    name = "Nouveaux",
+    name = "Nouveaux (24h)",
     type = "bar",
     color = "rgba(230, 46, 0, 1)",
     data = data$new_cas,
